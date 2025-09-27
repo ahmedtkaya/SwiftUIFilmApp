@@ -14,9 +14,34 @@ class CartViewModel: ObservableObject {
     
     func fetchCart() {
         service.getCart { [weak self] items in
-            self?.cartItems = items
+            
+            let grouped = Dictionary(grouping: items, by: { $0.name })
+            
+            let merged = grouped.map { (_, values) -> CartItem in
+                var first = values.first!
+                let totalAmount = values.reduce(0) { $0 + $1.orderAmount }
+                first = CartItem(
+                    cartId: first.cartId,
+                    name: first.name,
+                    image: first.image,
+                    price: first.price,
+                    category: first.category,
+                    rating: first.rating,
+                    year: first.year,
+                    director: first.director,
+                    description: first.description,
+                    orderAmount: totalAmount,
+                    userName: first.userName
+                )
+                return first
+            }
+            
+            DispatchQueue.main.async {
+                self?.cartItems = merged
+            }
         }
     }
+
     
     func addToCart(movie: Movie, amount: Int) {
         service.insertMovie(movie: movie, amount: amount) { [weak self] success in
@@ -40,12 +65,10 @@ class CartViewModel: ObservableObject {
             return
         }
         
-        // 1️⃣ Önce sil
         service.deleteMovie(cartId: item.cartId) { [weak self] success in
             if success {
-                // 2️⃣ Sonra aynı filmi yeni adetle ekle
                 let movie = Movie(
-                    id: item.cartId, // burada id önemli değil
+                    id: item.cartId,
                     name: item.name,
                     image: item.image,
                     price: item.price,
